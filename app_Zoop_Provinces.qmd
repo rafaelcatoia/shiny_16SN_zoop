@@ -1,0 +1,420 @@
+---
+title: "Zooplankton Provinces"
+format: 
+  html:
+     page-layout: custom
+     self-contained: true
+server: shiny
+---
+
+::: {.columns}
+
+::: {.column width="25%"}
+```{r}
+#| panel: sidebar
+
+vec_aggregation <- c(
+  'ASV',
+  'Species',
+  'Genus',
+  'Family',
+  'Order',
+  'Class',
+  'Division',
+  'Supergroup')
+
+fluidPage(
+  fluidRow(
+    selectInput(inputId = 'taxonomic_agg',
+                label = 'Taxonomic Level',vec_aggregation),
+    selectInput('rm_rare_ASV','Remove Rare ASV',
+                selected =1,c('No','Yes')),
+    numericInput('k_clusters', 'Number Of Clusters',
+                 10,min = 1, max = 40),
+    sliderInput(inputId = "alphaGeo", label = "Geo weight",
+                min = 0,max = 1,step = 0.05,value = 0.1)
+  )
+)
+
+### ALL OUTPUT NAMES = 
+# 
+# output$plot_LatDepth = renderPlot(p_lat_depth)
+# output$plot_Abio = renderPlot(p_abiotic)
+# 
+# output$plot_mds_ASV = mds_plot_list$ASV
+# output$plot_mds_Species = mds_plot_list$Species
+# output$plot_mds_Genus = mds_plot_list$Genus
+# output$plot_mds_Family = mds_plot_list$Family
+# output$plot_mds_Order = mds_plot_list$Order
+# output$plot_mds_Class = mds_plot_list$Class
+# output$plot_mds_Division = mds_plot_list$Division
+# output$plot_mds_Supergroup = mds_plot_list$Supergroup
+# 
+```
+:::
+
+::: {.column width="75%"}
+
+::: panel-tabset
+# Clusters 
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_LatDepth')  
+  )
+)
+
+```
+
+# Abiotics 
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_Abio')
+  ),
+  fluidRow(
+      plotOutput('plot_Abio_2D',height = '600px')
+  )
+)
+
+```
+
+# MDS
+::: panel-tabset
+
+## Supergroup
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Supergroup')  
+  )
+)
+```
+
+## Division
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Division')  
+  )
+)
+```
+
+## Class
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Class')  
+  )
+)
+```
+
+## Order
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Order')  
+  )
+)
+```
+
+## Family
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Family')  
+  )
+)
+```
+
+## Genus
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Genus')  
+  )
+)
+```
+
+## Species
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_Species')  
+  )
+)
+```
+
+## ASV
+
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+  plotOutput('plot_mds_ASV')  
+  )
+)
+```
+
+:::
+
+# Read Me
+
+This app is still under construciton.
+
+We will provide more information and details in a future version.
+
+
+:::
+
+
+:::
+
+
+::::
+
+```{r server}
+#| context: server
+
+#### Loading Packages 
+library(shiny) ; library(vegan)
+library(tidyverse) ; library(dplyr) ; library(ggplot2)
+library(gridExtra) ; library(tidyr) ; library(plotly)
+
+##loading phase
+
+root <- rprojroot::has_file(".git/index")
+datadir = root$find_file("data")
+funsdir = root$find_file("functions")
+savingdir = root$find_file("saved_files")
+
+biotic_list_dist = root$find_file('saved_files/biotic_list_dist')
+biotic_list_dist_at_least_two = root$find_file('saved_files/biotic_list_dist_at_least_two')
+df_geo_abiotics = root$find_file('saved_files/df_geo_abiotics')
+list_dist_matrices = root$find_file('saved_files/list_dist_matrices')
+list_dist_matrices_normalized = root$find_file('saved_files/list_dist_matrices_normalized')
+list_mds_coord = root$find_file('saved_files/list_mds_coord')
+#source(file = root$find_file('function/gpairs_lower.R'))
+
+biotic_list_dist = readRDS(biotic_list_dist)
+biotic_list_dist_at_least_two = readRDS(biotic_list_dist_at_least_two)
+df_geo_abiotics = readRDS(df_geo_abiotics)
+list_dist_matrices = readRDS(list_dist_matrices)
+list_dist_matrices_normalized = readRDS(list_dist_matrices_normalized)
+list_mds_coord = readRDS(list_mds_coord)
+
+## Function -- 
+gpairs_lower <- function(g){
+  g$plots <- g$plots[-(1:g$nrow)]
+  g$yAxisLabels <- g$yAxisLabels[-1]
+  g$nrow <- g$nrow -1
+  
+  g$plots <- g$plots[-(seq(g$ncol, length(g$plots), by = g$ncol))]
+  g$xAxisLabels <- g$xAxisLabels[-g$ncol]
+  g$ncol <- g$ncol - 1
+  return(g)
+}
+
+
+
+#################################################################
+#################################################################
+### Functions ###################################################
+#################################################################
+#################################################################
+
+### InputExample
+#    selectInput('taxonomic_agg', 'Taxonomic Level',selected = 8,vec_aggregation),
+#    selectInput('rm_rare_ASV','Remove Rare ASV',selected =1,c('No','Yes')),
+#    numericInput('k_clusters', 'Number Of Clusters', 10,min = 1, max = 40),
+#    sliderInput(inputId = "alphaGeo", label = "Geo weight",
+#                min = 0,max = 1,step = 0.05,value = 0.1)
+
+#input<-list()
+#input$taxonomic_agg <- 'ASV'
+#input$rm_rare_ASV <- 'No'
+#input$k_clusters <- '10'
+#input$alphaGeo = 0.1
+#
+
+from_input_to_list <- function(input){
+  name_aggregation <- input$taxonomic_agg
+  removing_rare <- input$rm_rare_ASV
+  number_of_clusters <- input$k_clusters
+  alphaGeo <- input$alphaGeo
+  return(list(name_aggregation=name_aggregation,
+              removing_rare=removing_rare,
+              number_of_clusters=number_of_clusters,
+              alphaGeo=alphaGeo))
+  }
+
+#all_input = list(name_aggregation=name_aggregation,
+#              removing_rare=removing_rare,
+#              number_of_clusters=number_of_clusters,
+#              alphaGeo=alphaGeo)
+#all_input_aux=all_input
+
+all_input <- reactive(from_input_to_list(input))
+
+generate_all <- function(all_input_aux){
+  ## First check if we will remove rare ASVs
+  if(all_input_aux$removing_rare=='No'){
+    biotic_dists <- biotic_list_dist
+  }else{
+    biotic_dists <- biotic_list_dist_at_least_two
+  }
+  
+  ## Now, lets create the cluster membership
+  vec_aggregation <- c('Supergroup','Division','Class','Order',
+                       'Family','Genus','Species','ASV')
+  
+  position_list = 
+    which(
+    names(biotic_dists)==
+      paste0(all_input_aux$name_aggregation,'_normalized'))
+  
+  ## Creating D_pooled 
+  D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]]+
+    all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
+  
+  cluster_membership = cutree(
+    hclust(as.dist(D_pooled),method = 'ward.D'),
+    k = all_input_aux$number_of_clusters)
+  
+  ######################################################
+  ### Latitude Depth Plot
+  ######################################################
+  
+  df_lat_geo = df_geo_abiotics %>% select(Latitude,Depth) %>% 
+    tibble::add_column(Cluster = factor(cluster_membership))
+  
+  p_lat_depth = ggplot()+
+    geom_label(data = df_lat_geo,
+               aes(x=Latitude,y=Depth,label=Cluster,fill=Cluster))+
+    scale_y_reverse()+
+    theme_minimal(base_size = 16)+
+    theme(legend.position = 'none')
+  
+  ######################################################
+  ### Abiotics
+  ######################################################
+  vet_abio_vars <- c("Temperature","Salinity","Oxygen",
+                     "Silicate","NO2","NO3","PO4")
+  
+  df_abio = df_geo_abiotics %>% select(one_of(vet_abio_vars)) %>% 
+    tibble::add_column(Cluster = factor(cluster_membership)) %>% 
+    pivot_longer(-Cluster,names_to = 'abiotic',values_to = 'values')
+  
+  
+  p_abiotic = ggplot(
+    df_abio,
+    aes(x=Cluster,y=values,color=Cluster))+
+    geom_boxplot(alpha=0.35)+
+    geom_point()+
+    facet_wrap(~abiotic,scales='free',ncol=4)+
+    theme_minimal(base_size = 16)+
+    theme(legend.position = 'none')+
+    coord_flip()
+  
+  ## Abiotic 2D
+  
+  df_abio = df_geo_abiotics %>% select(one_of(vet_abio_vars)) %>% 
+    tibble::add_column(Cluster = factor(cluster_membership)) 
+  
+  pairwise_abiotics <- GGally::ggpairs(
+    df_abio %>%
+      select(Cluster,one_of(vet_abio_vars)),upper = NULL,
+    mapping=ggplot2::aes(colour = Cluster, fill = Cluster,alpha=0.25),
+    diag = NULL,
+    columns = (2:8))+theme_minimal(base_size = 16)
+  
+  pairwise_abiotics <- gpairs_lower(pairwise_abiotics)
+  ######################################################
+  ### MDS
+  ######################################################
+  mds_plot_list <- list()
+  
+  mds_plot_list = lapply(
+    list_mds_coord,
+    function(x){
+      df_mds <- data.frame(
+        MDS1 = x[,1],
+        MDS2 = x[,2],
+        MDS3 = x[,3],
+        Cluster = factor(cluster_membership),
+        LongHurst_Short = df_geo_abiotics$Longhurst_Short,
+        Depth = df_geo_abiotics$Depth)
+      
+      plt_mds = df_mds %>% 
+        ggplot(aes(x=MDS1,y=MDS2,
+                   color=Cluster,size=Depth))+
+        geom_point(alpha=0.75)+
+        facet_wrap(LongHurst_Short~.,ncol=5)+
+        theme_minimal(base_size = 16)+
+        theme(legend.position = 'bottom')
+      
+      return(plt_mds)}
+  )
+  
+  names(mds_plot_list) <- names(list_mds_coord)
+  
+  return(list(p_lat_depth=p_lat_depth,
+              p_abiotic=p_abiotic,
+              mds_plot_list=mds_plot_list,
+              pairwise_abiotics=pairwise_abiotics))
+  
+}
+
+obj_all <- reactive({
+  generate_all(all_input_aux = all_input()
+    )
+  })
+
+##################################################################
+##################################################################
+######### Creating output phase 
+##################################################################
+##################################################################
+
+output$plot_LatDepth        = renderPlot(obj_all()$p_lat_depth)
+output$plot_Abio            = renderPlot(obj_all()$p_abiotic)
+output$plot_Abio_2D         = renderPlot(obj_all()$pairwise_abiotics)
+output$plot_mds_ASV         = renderPlot(obj_all()$mds_plot_list$ASV       )
+output$plot_mds_Species     = renderPlot(obj_all()$mds_plot_list$Species   )
+output$plot_mds_Genus       = renderPlot(obj_all()$mds_plot_list$Genus     )
+output$plot_mds_Family      = renderPlot(obj_all()$mds_plot_list$Family    )
+output$plot_mds_Order       = renderPlot(obj_all()$mds_plot_list$Order     )
+output$plot_mds_Class       = renderPlot(obj_all()$mds_plot_list$Class     )
+output$plot_mds_Division    = renderPlot(obj_all()$mds_plot_list$Division  )
+output$plot_mds_Supergroup  = renderPlot(obj_all()$mds_plot_list$Supergroup)
+
+
+# 
+# output$plot_mds_ASV         = mds_plot_list$ASV
+# output$plot_mds_Species     = mds_plot_list$Species
+# output$plot_mds_Genus       = mds_plot_list$Genus
+# output$plot_mds_Family      = mds_plot_list$Family
+# output$plot_mds_Order       = mds_plot_list$Order
+# output$plot_mds_Class       = mds_plot_list$Class
+# output$plot_mds_Division    = mds_plot_list$Division
+# output$plot_mds_Supergroup  = mds_plot_list$Supergroup
+```
