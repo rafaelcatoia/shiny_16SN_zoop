@@ -2,14 +2,18 @@
 title: "Zooplankton Provinces"
 format: 
   html:
-     page-layout: custom
+     page-layout: full
      self-contained: true
+     fig-width: 12
+     fig-height: 6
+     fig-align: center
+     fig-dpi: 200
 server: shiny
 ---
 
 ::: {.columns}
 
-::: {.column width="25%"}
+::: {.column width="20%"}
 ```{r}
 #| panel: sidebar
 
@@ -53,19 +57,21 @@ fluidPage(
 ```
 :::
 
-::: {.column width="75%"}
+::: {.column width="80%"}
 
 ::: panel-tabset
-# Clusters 
+# Clusters
+
 ```{r}
 #| panel: center
 
-fluidPage(
-  fluidRow(
-  plotOutput('plot_LatDepth')  
-  )
-)
+# fluidPage(
+#   fluidRow(
+#   plotOutput('plot_LatDepth',width = 'auto')  
+#   )
+# )
 
+plotOutput('plot_LatDepth',width = '100%')  
 ```
 
 # Abiotics 
@@ -77,7 +83,7 @@ fluidPage(
   plotOutput('plot_Abio')
   ),
   fluidRow(
-      plotOutput('plot_Abio_2D',height = '600px')
+      plotOutput('plot_Abio_2D',height = '600px',  width = "100%")
   )
 )
 
@@ -92,7 +98,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Supergroup')  
+  plotOutput('plot_mds_Supergroup',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -103,7 +109,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Division')  
+  plotOutput('plot_mds_Division',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -114,7 +120,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Class')  
+  plotOutput('plot_mds_Class',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -125,7 +131,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Order')  
+  plotOutput('plot_mds_Order',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -136,7 +142,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Family')  
+  plotOutput('plot_mds_Family',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -147,7 +153,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Genus')  
+  plotOutput('plot_mds_Genus',height = '500px',  width = "100%")
   )
 )
 ```
@@ -158,7 +164,7 @@ fluidPage(
 
 fluidPage(
   fluidRow(
-  plotOutput('plot_mds_Species')  
+  plotOutput('plot_mds_Species',height = '500px',  width = "100%")  
   )
 )
 ```
@@ -167,19 +173,19 @@ fluidPage(
 
 ```{r}
 #| panel: center
-
-fluidPage(
-  fluidRow(
-  plotOutput('plot_mds_ASV')  
-  )
-)
+#height = '500px')  
+#fluidPage(
+#  fluidRow(
+  plotOutput('plot_mds_ASV',height = '500px',  width = "100%")  
+#  )
+#)
 ```
 
 :::
 
 # Read Me
 
-This app is still under construciton.
+This app is still under construction.
 
 We will provide more information and details in a future version.
 
@@ -202,25 +208,18 @@ library(gridExtra) ; library(tidyr) ; library(plotly)
 
 ##loading phase
 
-root <- rprojroot::has_file(".git/index")
-datadir = root$find_file("data")
-funsdir = root$find_file("functions")
-savingdir = root$find_file("saved_files")
+#root <- rprojroot::has_file(".git/index")
+#datadir = root$find_file("data")
+#funsdir = root$find_file("functions")
+#savingdir = root$find_file("saved_files")
 
-biotic_list_dist = root$find_file('saved_files/biotic_list_dist')
-biotic_list_dist_at_least_two = root$find_file('saved_files/biotic_list_dist_at_least_two')
-df_geo_abiotics = root$find_file('saved_files/df_geo_abiotics')
-list_dist_matrices = root$find_file('saved_files/list_dist_matrices')
-list_dist_matrices_normalized = root$find_file('saved_files/list_dist_matrices_normalized')
-list_mds_coord = root$find_file('saved_files/list_mds_coord')
+biotic_list_dist = readRDS('saved_files/biotic_list_dist')
+biotic_list_dist_at_least_two = readRDS('saved_files/biotic_list_dist_at_least_two')
+df_geo_abiotics = readRDS('saved_files/df_geo_abiotics')
+list_dist_matrices = readRDS('saved_files/list_dist_matrices')
+list_dist_matrices_normalized = readRDS('saved_files/list_dist_matrices_normalized')
+list_mds_coord = readRDS('saved_files/list_mds_coord')
 #source(file = root$find_file('function/gpairs_lower.R'))
-
-biotic_list_dist = readRDS(biotic_list_dist)
-biotic_list_dist_at_least_two = readRDS(biotic_list_dist_at_least_two)
-df_geo_abiotics = readRDS(df_geo_abiotics)
-list_dist_matrices = readRDS(list_dist_matrices)
-list_dist_matrices_normalized = readRDS(list_dist_matrices_normalized)
-list_mds_coord = readRDS(list_mds_coord)
 
 ## Function -- 
 gpairs_lower <- function(g){
@@ -293,7 +292,7 @@ generate_all <- function(all_input_aux){
       paste0(all_input_aux$name_aggregation,'_normalized'))
   
   ## Creating D_pooled 
-  D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]]+
+  D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
     all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
   
   cluster_membership = cutree(
@@ -304,15 +303,30 @@ generate_all <- function(all_input_aux){
   ### Latitude Depth Plot
   ######################################################
   
+  vet_longhurst <- c(-67.5, -57.2, - 44, -38, -7.5, 4 ,11, 34.5, 44.5)
+  
   df_lat_geo = df_geo_abiotics %>% select(Latitude,Depth) %>% 
     tibble::add_column(Cluster = factor(cluster_membership))
+  
   
   p_lat_depth = ggplot()+
     geom_label(data = df_lat_geo,
                aes(x=Latitude,y=Depth,label=Cluster,fill=Cluster))+
     scale_y_reverse()+
     theme_minimal(base_size = 16)+
-    theme(legend.position = 'none')
+    theme(legend.position = 'none') + 
+    geom_vline(xintercept = vet_longhurst,col='deepskyblue3',alpha=0.7)+
+    
+      annotate("text", x = -72, y = -25, label = "APLR",hjust=0.5)+
+      annotate("text", x = -63, y = -25, label = "ANTA",hjust=0.5)+
+      annotate("text", x = -50, y = -25, label = "SANT",hjust=0.5)+
+      annotate("text", x = -41, y = -25, label = "SSTC",hjust=0.5)+
+      annotate("text", x = -25,  y = -25, label = "SPSG",hjust=0.5)+
+      annotate("text", x = -2,  y = -25, label = "PEQD",hjust=0.5)+
+      annotate("text", x = 7.5,  y = -25, label = "PNEC",hjust=0.5)+
+      annotate("text", x = 25,  y = -25, label = "NPTG",hjust=0.5)+
+      annotate("text", x = 40,  y = -25, label = "NPPF",hjust=0.5)+
+      annotate("text", x = 50,  y = -25, label = "PSAE",hjust=0.5)
   
   ######################################################
   ### Abiotics

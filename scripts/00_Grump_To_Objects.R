@@ -7,6 +7,11 @@ datadir = root$find_file("data")
 funsdir = root$find_file("functions")
 savingdir = root$find_file("saved_files")
 
+normalizeMatrix <- function(X){
+  normMat = norm(X,type='2')
+  return(X/normMat)
+}
+
 #files_vec <- list.files(funsdir)
 #
 #for( i in 1:length(files_vec)){
@@ -145,7 +150,8 @@ list_dist_matrices_normalized$abiotic <- df_geo_abiotics %>%
 ###########################################################################################################s
 
 ## First defining the ASVs that are " rare "
-df_asvs_appearence = dframe %>% select(SampleID,ID_ASV) %>% distinct() %>% 
+df_asvs_appearence = dframe %>%
+  select(SampleID,ID_ASV) %>% distinct() %>% 
   group_by(ID_ASV) %>% 
   summarise(n_samples = n()) %>% arrange(n_samples)
 
