@@ -100,10 +100,11 @@ df_geo_abiotics$Oxygen[df_geo_abiotics$SampleID=='P16S-S96-N28'] <- 346.9
 
 ## Saving the abiotics df
 saveRDS(df_geo_abiotics,file = paste0(savingdir,'/','df_geo_abiotics'))
-dim(df_geo_abiotics)
+df_geo_abiotics = readRDS(paste0(savingdir,'/','df_geo_abiotics'))
 
 ## Saving the filtered Grump stacked
 saveRDS(dframe,file = paste0(savingdir,'/','dfGrump_longer_filtered'))
+dframe = readRDS(paste0(savingdir,'/','dfGrump_longer_filtered'))
 
 ## Creating distance matrices ----------------------------------------------------------------
 list_dist_matrices_normalized <- list()
@@ -738,5 +739,89 @@ saveRDS(list_mds_coord,file = paste0(savingdir,'/','list_mds_coord'))
 ##################################################################################################
 # Taxonomic ################################################################################
 ##################################################################################################
+
+## Supergroup
+Supergroup_tax_lat_Depth = dframe %>% 
+  group_by(SampleID,Supergroup) %>% 
+  summarise(Raw.Sequence.Counts=sum(Raw.Sequence.Counts)) %>% 
+  select(SampleID,Supergroup,Raw.Sequence.Counts) %>% distinct() %>% 
+  group_by(SampleID,Supergroup) %>% 
+  summarise(Sum_RawCounts = sum(Raw.Sequence.Counts)) %>% ungroup %>% 
+  tidyr::pivot_wider(id_cols = SampleID,names_from = Supergroup ,
+                     values_from = Sum_RawCounts,
+                     values_fill = 0.01) %>%
+  data.frame() %>% 
+  mutate(across(where(is.numeric))/rowSums(across(where(is.numeric)))) %>% 
+  relocate(SampleID,sort(names(.))) %>% 
+  arrange(SampleID) %>% 
+  left_join(df_geo_abiotics %>% select(SampleID,Latitude,Depth)) 
+
+
+#%>% 
+# tidyr::pivot_longer(-c('SampleID','Latitude','Depth'),names_to = 'Supergroup',values_to = 'RA') %>% 
+# ggplot2::ggplot(aes(x=Latitude,y=Depth,size=RA)) +
+# geom_point(alpha=0.5)+
+# facet_wrap(Supergroup~.)+
+# scale_y_reverse()+
+# theme_minimal()+
+# theme(legend.position = 'minimal')
+
+
+## Supergroup
+Division_tax_lat_Depth = dframe %>% 
+  group_by(SampleID,Division) %>% 
+  summarise(Raw.Sequence.Counts=sum(Raw.Sequence.Counts)) %>% 
+  select(SampleID,Division,Raw.Sequence.Counts) %>% distinct() %>% 
+  group_by(SampleID,Division) %>% 
+  summarise(Sum_RawCounts = sum(Raw.Sequence.Counts)) %>% ungroup %>% 
+  tidyr::pivot_wider(id_cols = SampleID,names_from = Division ,
+                     values_from = Sum_RawCounts,
+                     values_fill = 0.01) %>%
+  data.frame() %>% 
+  mutate(across(where(is.numeric))/rowSums(across(where(is.numeric)))) %>% 
+  relocate(SampleID,sort(names(.))) %>% 
+  arrange(SampleID) %>% 
+  left_join(df_geo_abiotics %>% select(SampleID,Latitude,Depth)) #%>% 
+
+dim(Division_tax_lat_Depth)  
+#tidyr::pivot_longer(-c('SampleID','Latitude','Depth'),names_to = 'Division',values_to = 'RA') %>% 
+  #ggplot2::ggplot(aes(x=Latitude,y=Depth,size=RA)) +
+  #geom_point(alpha=0.5)+
+  #facet_wrap(Division~.)+
+  #scale_y_reverse()+
+  #theme_minimal()+
+  #theme(legend.position = 'minimal')
+
+## Class
+Class_tax_lat_Depth = dframe %>% 
+  group_by(SampleID,Class) %>% 
+  summarise(Raw.Sequence.Counts=sum(Raw.Sequence.Counts)) %>% 
+  select(SampleID,Class,Raw.Sequence.Counts) %>% distinct() %>% 
+  group_by(SampleID,Class) %>% 
+  summarise(Sum_RawCounts = sum(Raw.Sequence.Counts)) %>% ungroup %>% 
+  tidyr::pivot_wider(id_cols = SampleID,names_from = Class ,
+                     values_from = Sum_RawCounts,
+                     values_fill = 0.01) %>%
+  data.frame() %>% 
+  mutate(across(where(is.numeric))/rowSums(across(where(is.numeric)))) %>% 
+  relocate(SampleID,sort(names(.))) %>% 
+  arrange(SampleID) %>% 
+  left_join(df_geo_abiotics %>% select(SampleID,Latitude,Depth)) #%>% 
+
+dim(Class_tax_lat_Depth) 
+#tidyr::pivot_longer(-c('SampleID','Latitude','Depth'),names_to = 'Class',values_to = 'RA') %>% 
+ #ggplot2::ggplot(aes(x=Latitude,y=Depth,size=RA)) +
+ #geom_point(alpha=0.5)+
+ #facet_wrap(Class~.)+
+ #scale_y_reverse()+
+ #theme_minimal()+
+ #theme(legend.position = 'bottom')
+
+list_tax <- list()
+list_tax$Supergroup_tax_lat_Depth = Supergroup_tax_lat_Depth
+list_tax$Division_tax_lat_Depth = Division_tax_lat_Depth
+list_tax$Class_tax_lat_Depth = Class_tax_lat_Depth
+saveRDS(list_tax,paste0(savingdir,'/list_tax'))
+
 
 ####-TODO

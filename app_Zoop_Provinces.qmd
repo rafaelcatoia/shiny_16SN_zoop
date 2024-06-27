@@ -183,6 +183,99 @@ fluidPage(
 
 :::
 
+# Taxa
+::: panel-tabset
+
+## Summaries
+::: panel-tabset
+
+### Supergroup
+```{r}
+#| panel: center
+fluidPage(
+  fluidRow(
+    plotOutput(
+      'plot_sp',
+      height = '500px',
+      width = "100%")  
+  )
+)
+```
+
+### Division
+```{r}
+#| panel: center
+fluidPage(
+  fluidRow(
+    plotOutput(
+      'plot_div',
+      height = '600px',
+      width = "100%")  
+  )
+)
+```
+:::
+
+## All Samples
+::: panel-tabset
+### Supergroup
+```{r}
+#| panel: center
+fluidPage(
+  fluidRow(
+    plotOutput(
+      'plot_sp_clust_facet',
+      height = '600px',
+      width = "100%")  
+  )
+)
+```
+
+### Division
+```{r}
+#| panel: center
+fluidPage(
+  fluidRow(
+    plotOutput(
+      'plot_div_clust_facet',
+      height = '600px',
+      width = "100%")  
+  )
+)
+```
+:::
+
+## Over Space
+::: panel-tabset
+### Supergroup
+```{r}
+#| panel: center
+
+fluidPage(
+  fluidRow(
+    plotOutput('plot_tax_Supergroup',height = '600px',  width = "100%")  
+  )
+)
+```
+
+### Division
+
+```{r}
+#| panel: center
+fluidPage(
+  fluidRow(
+    plotOutput(
+      'plot_tax_Division',
+      height = '500px',
+      width = "100%")  
+  )
+)
+```
+
+:::
+
+:::
+
 # Read Me
 
 This app is still under construction.
@@ -219,6 +312,7 @@ df_geo_abiotics = readRDS('saved_files/df_geo_abiotics')
 list_dist_matrices = readRDS('saved_files/list_dist_matrices')
 list_dist_matrices_normalized = readRDS('saved_files/list_dist_matrices_normalized')
 list_mds_coord = readRDS('saved_files/list_mds_coord')
+list_tax = readRDS('saved_files/list_tax')
 #source(file = root$find_file('function/gpairs_lower.R'))
 
 ## Function -- 
@@ -253,7 +347,7 @@ gpairs_lower <- function(g){
 #input$rm_rare_ASV <- 'No'
 #input$k_clusters <- '10'
 #input$alphaGeo = 0.1
-#
+
 
 from_input_to_list <- function(input){
   name_aggregation <- input$taxonomic_agg
@@ -318,16 +412,17 @@ generate_all <- function(all_input_aux){
     geom_vline(xintercept = vet_longhurst,col='deepskyblue3',alpha=0.7)+
     
       annotate("text", x = -72, y = -25, label = "APLR",hjust=0.5)+
-      annotate("text", x = -63, y = -25, label = "ANTA",hjust=0.5)+
+      annotate("text", x = -62.5, y = -25, label = "ANTA",hjust=0.5)+
       annotate("text", x = -50, y = -25, label = "SANT",hjust=0.5)+
       annotate("text", x = -41, y = -25, label = "SSTC",hjust=0.5)+
       annotate("text", x = -25,  y = -25, label = "SPSG",hjust=0.5)+
       annotate("text", x = -2,  y = -25, label = "PEQD",hjust=0.5)+
       annotate("text", x = 7.5,  y = -25, label = "PNEC",hjust=0.5)+
-      annotate("text", x = 25,  y = -25, label = "NPTG",hjust=0.5)+
+      annotate("text", x = 24,  y = -25, label = "NPTG",hjust=0.5)+
       annotate("text", x = 40,  y = -25, label = "NPPF",hjust=0.5)+
-      annotate("text", x = 50,  y = -25, label = "PSAE",hjust=0.5)
+      annotate("text", x = 52,  y = -25, label = "PSAE",hjust=0.5)
   
+
   ######################################################
   ### Abiotics
   ######################################################
@@ -346,8 +441,8 @@ generate_all <- function(all_input_aux){
     geom_point()+
     facet_wrap(~abiotic,scales='free',ncol=4)+
     theme_minimal(base_size = 16)+
-    theme(legend.position = 'none')+
-    coord_flip()
+    theme(legend.position = 'none')#+
+    #coord_flip()
   
   ## Abiotic 2D
   
@@ -391,11 +486,151 @@ generate_all <- function(all_input_aux){
   
   names(mds_plot_list) <- names(list_mds_coord)
   
-  return(list(p_lat_depth=p_lat_depth,
-              p_abiotic=p_abiotic,
-              mds_plot_list=mds_plot_list,
-              pairwise_abiotics=pairwise_abiotics))
+  ######################################################
+  ### Taxa -- Joining the clusters to the taxa files
+  ######################################################
   
+  ######## Supergroup
+  supergroup_tax <- 
+    list_tax$Supergroup_tax_lat_Depth %>% left_join(
+    df_geo_abiotics %>% select(SampleID) %>% 
+    tibble::add_column(Cluster = factor(cluster_membership))
+  )
+  
+  plt_tax_sup = 
+    supergroup_tax %>%
+    tidyr::pivot_longer(-c('SampleID','Latitude','Depth','Cluster'),
+                        names_to = 'Supergroup',values_to = 'RA') %>% 
+    ggplot2::ggplot(aes(x=Latitude,y=Depth,size=RA,color=Cluster)) +
+    geom_point(alpha=0.5)+
+    facet_wrap(Supergroup~.)+
+    scale_y_reverse()+
+    theme_minimal(base_size = 16)+
+    theme(legend.position = 'bottom')
+  
+  
+  list_sptx_plot = supergroup_tax %>%
+    select(-Latitude) %>% mutate(Cluster_Aux=Cluster) %>% 
+    group_split(Cluster_Aux)
+  
+  list_plots_tx_sp= lapply(list_sptx_plot,function(xx){
+    xx %>% 
+    arrange(Depth) %>% 
+    mutate(SampleID=as.factor(1:n())) %>%
+      select(-Depth,-Cluster_Aux) %>% 
+    tidyr::pivot_longer(-c('SampleID','Cluster'),
+                        names_to = 'Supergroup',values_to = 'RA') %>% 
+    ggplot2::ggplot(aes(x=SampleID,y=RA,fill=Supergroup)) +
+    geom_col()+theme_minimal()+theme(legend.position = 'bottom')+
+      xlab('')+#+ coord_flip()+
+    ggtitle(unique(xx$Cluster))
+  })
+
+  plot_sp_clust_facet = ggpubr::ggarrange(
+    plotlist = list_plots_tx_sp,common.legend = T,legend = 'bottom')
+
+  ################ ----------
+  
+  list_sptx_plot_faceted = 
+    supergroup_tax %>% select(-Latitude) %>% 
+    tidyr::pivot_longer(-c('SampleID','Cluster','Depth'),
+                        names_to = 'Supergroup',values_to = 'RA') %>%
+    group_split(Supergroup)
+  
+  list_plots_tx_faceted = lapply(list_sptx_plot_faceted, function(xx){
+    xx %>% 
+      group_by(Cluster) %>% 
+      summarise(RA=mean(RA)) %>% 
+      ggplot(aes(x=Cluster,y=RA))+
+      geom_col()+theme_minimal()+xlab('')+
+      ylim(0,1)+coord_flip()+
+      ggtitle(unique(xx$Supergroup))
+  })
+  
+    plot_sp = ggpubr::ggarrange(
+    plotlist = list_plots_tx_faceted,common.legend = T,
+    legend = 'bottom')
+  
+  
+  ######## Division
+    division_tax <- 
+      list_tax$Division_tax_lat_Depth %>% left_join(
+        df_geo_abiotics %>% select(SampleID) %>% 
+          tibble::add_column(Cluster = factor(cluster_membership))
+      )
+    
+    plt_tax_div = 
+      division_tax %>%
+      tidyr::pivot_longer(-c('SampleID','Latitude','Depth','Cluster'),
+                          names_to = 'Division',values_to = 'RA') %>% 
+      ggplot2::ggplot(aes(x=Latitude,y=Depth,size=RA,color=Cluster)) +
+      geom_point(alpha=0.5)+
+      facet_wrap(Division~.,ncol = 5)+
+      scale_y_reverse()+
+      theme_minimal(base_size = 16)+
+      theme(legend.position = 'bottom')
+    
+    
+    list_divtx_plot = division_tax %>%
+      select(-Latitude) %>% mutate(Cluster_Aux=Cluster) %>% 
+      group_split(Cluster_Aux)
+    
+    list_plots_tx_div= lapply(list_divtx_plot,function(xx){
+      xx %>% 
+        arrange(Depth) %>% 
+        mutate(SampleID=as.factor(1:n())) %>%
+        select(-Depth,-Cluster_Aux) %>% 
+        tidyr::pivot_longer(-c('SampleID','Cluster'),
+                            names_to = 'Division',values_to = 'RA') %>% 
+        ggplot2::ggplot(aes(x=SampleID,y=RA,fill=Division)) +
+        geom_col()+theme_minimal()+theme(legend.position = 'bottom')+
+        xlab('')+#+ coord_flip()+
+        ggtitle(unique(xx$Cluster))
+    })
+    
+    plot_div_clust_facet = ggpubr::ggarrange(
+      plotlist = list_plots_tx_div,common.legend = T,
+      legend = 'bottom')
+    
+    ################ ----------
+    
+    list_divtx_plot_faceted = 
+      division_tax %>% select(-Latitude) %>% 
+      tidyr::pivot_longer(-c('SampleID','Cluster','Depth'),
+                          names_to = 'Division',values_to = 'RA') %>%
+      group_split(Division)
+    
+    list_plots_tx_faceted = lapply(list_divtx_plot_faceted, function(xx){
+      xx %>% 
+        group_by(Cluster) %>% 
+        summarise(RA=mean(RA)) %>% 
+        ggplot(aes(x=Cluster,y=RA))+
+        geom_col()+theme_minimal()+xlab('')+
+        ylim(0,1)+coord_flip()+
+        ggtitle(unique(xx$Division))
+    })
+    
+    plot_div = ggpubr::ggarrange(
+      plotlist = list_plots_tx_faceted,common.legend = T,
+      legend = 'bottom')
+    
+  
+  
+   
+   return(list(
+     p_lat_depth=p_lat_depth,
+     p_abiotic=p_abiotic,
+     mds_plot_list=mds_plot_list,
+     pairwise_abiotics=pairwise_abiotics,
+     plt_tax_sup = plt_tax_sup,
+     plt_tax_div=plt_tax_div,
+     plot_sp_clust_facet=plot_sp_clust_facet,
+     plot_sp=plot_sp,
+     plot_div_clust_facet=plot_div_clust_facet,
+     plot_div=plot_div
+     #plt_tax_calss=plt_tax_calss
+   ))
+   
 }
 
 obj_all <- reactive({
@@ -421,6 +656,17 @@ output$plot_mds_Class       = renderPlot(obj_all()$mds_plot_list$Class     )
 output$plot_mds_Division    = renderPlot(obj_all()$mds_plot_list$Division  )
 output$plot_mds_Supergroup  = renderPlot(obj_all()$mds_plot_list$Supergroup)
 
+### Tax
+#Over Space
+output$plot_sp_clust_facet = renderPlot(obj_all()$plot_sp_clust_facet)
+output$plot_sp = renderPlot(obj_all()$plot_sp)
+output$plot_div_clust_facet = renderPlot(obj_all()$plot_div_clust_facet)
+output$plot_div = renderPlot(obj_all()$plot_div)
+
+### Tax
+#Over Space
+output$plot_tax_Supergroup  = renderPlot(obj_all()$plt_tax_sup)
+output$plot_tax_Division    = renderPlot(obj_all()$plt_tax_div)
 
 # 
 # output$plot_mds_ASV         = mds_plot_list$ASV
