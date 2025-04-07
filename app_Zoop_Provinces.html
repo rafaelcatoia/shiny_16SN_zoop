@@ -3036,8 +3036,21 @@ vertical-align: -.125em;
 <label class="control-label" id="k_clusters-label" for="k_clusters">Number Of Clusters</label>
 <input id="k_clusters" type="number" class="shiny-input-number form-control" value="10" min="1" max="40">
 </div>
+<div id="geo_switch" class="form-group shiny-input-radiogroup shiny-input-container shiny-input-container-inline" role="radiogroup" aria-labelledby="geo_switch-label">
+<label class="control-label" id="geo_switch-label" for="geo_switch">Geo/Abiotic</label>
+<div class="shiny-options-group">
+<label class="radio-inline">
+<input type="radio" name="geo_switch" value="Geo" checked="checked">
+<span>Geo</span>
+</label>
+<label class="radio-inline">
+<input type="radio" name="geo_switch" value="Abiotic">
+<span>Abiotic</span>
+</label>
+</div>
+</div>
 <div class="form-group shiny-input-container">
-<label class="control-label" id="alphaGeo-label" for="alphaGeo">Geo weight</label>
+<label class="control-label" id="alphaGeo-label" for="alphaGeo">Geo/Bio Weight</label>
 <input class="js-range-slider" id="alphaGeo" data-skin="shiny" data-min="0" data-max="1" data-from="0.1" data-step="0.05" data-grid="true" data-grid-num="10" data-grid-snap="false" data-prettify-separator="," data-prettify-enabled="true" data-keyboard="true" data-data-type="number">
 </div>
 </div>
@@ -3215,7 +3228,7 @@ vertical-align: -.125em;
 <div class="cell-output-display">
 <div class="container-fluid">
 <div class="row">
-<div class="shiny-plot-output html-fill-item" id="plot_sp" style="width:100%;height:600px;"></div>
+<div class="shiny-plot-output html-fill-item" id="plot_sp" style="width:100%;height:500px;"></div>
 </div>
 </div>
 </div>
@@ -3304,7 +3317,7 @@ vertical-align: -.125em;
 <div class="cell-output-display">
 <div class="container-fluid">
 <div class="row">
-<div class="shiny-plot-output html-fill-item" id="plot_tax_Division" style="width:100%;height:600px;"></div>
+<div class="shiny-plot-output html-fill-item" id="plot_tax_Division" style="width:100%;height:500px;"></div>
 </div>
 </div>
 </div>
@@ -3388,10 +3401,12 @@ from_input_to_list <- function(input){
   removing_rare <- input$rm_rare_ASV
   number_of_clusters <- input$k_clusters
   alphaGeo <- input$alphaGeo
+  geo_switch <- input$geo_switch
   return(list(name_aggregation=name_aggregation,
               removing_rare=removing_rare,
               number_of_clusters=number_of_clusters,
-              alphaGeo=alphaGeo))
+              alphaGeo=alphaGeo,
+              geo_switch=geo_switch))
   }
 
 #all_input = list(name_aggregation=name_aggregation,
@@ -3411,17 +3426,23 @@ generate_all <- function(all_input_aux){
   }
   
   ## Now, lets create the cluster membership
-  vec_aggregation <- c('Supergroup','Division','Class','Order',
-                       'Family','Genus','Species','ASV')
+  vec_aggregation <- c('Supergroup','Division','Class',
+                       'Order','Family','Genus','Species','ASV')
   
   position_list = 
     which(
     names(biotic_dists)==
       paste0(all_input_aux$name_aggregation,'_normalized'))
   
-  ## Creating D_pooled 
-  D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
-    all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
+  ## Creating D_pooled ############ -------------------------------------
+  
+  if(all_input_aux$geo_switch=='Geo'){
+    D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
+      all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
+  }else{
+    D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
+      all_input_aux$alphaGeo * list_dist_matrices_normalized$abiotic
+  }
   
   cluster_membership = cutree(
     hclust(as.dist(D_pooled),method = 'ward.D'),
@@ -3435,7 +3456,6 @@ generate_all <- function(all_input_aux){
   
   df_lat_geo = df_geo_abiotics %>% select(Latitude,Depth) %>% 
     tibble::add_column(Cluster = factor(cluster_membership))
-  
   
   p_lat_depth = ggplot()+
     geom_label(data = df_lat_geo,

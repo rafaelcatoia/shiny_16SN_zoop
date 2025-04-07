@@ -35,7 +35,15 @@ fluidPage(
                 selected =1,c('No','Yes')),
     numericInput('k_clusters', 'Number Of Clusters',
                  10,min = 1, max = 40),
-    sliderInput(inputId = "alphaGeo", label = "Geo weight",
+    
+    radioButtons(
+      inputId = 'geo_switch',
+      label = 'Geo/Abiotic',
+      choices = c('Geo','Abiotic'),
+      selected = 'Geo',inline = T
+    ),
+    
+    sliderInput(inputId = "alphaGeo", label = "Geo/Bio Weight",
                 min = 0,max = 1,step = 0.05,value = 0.1)
   )
 )
@@ -354,10 +362,12 @@ from_input_to_list <- function(input){
   removing_rare <- input$rm_rare_ASV
   number_of_clusters <- input$k_clusters
   alphaGeo <- input$alphaGeo
+  geo_switch <- input$geo_switch
   return(list(name_aggregation=name_aggregation,
               removing_rare=removing_rare,
               number_of_clusters=number_of_clusters,
-              alphaGeo=alphaGeo))
+              alphaGeo=alphaGeo,
+              geo_switch=geo_switch))
   }
 
 #all_input = list(name_aggregation=name_aggregation,
@@ -377,17 +387,23 @@ generate_all <- function(all_input_aux){
   }
   
   ## Now, lets create the cluster membership
-  vec_aggregation <- c('Supergroup','Division','Class','Order',
-                       'Family','Genus','Species','ASV')
+  vec_aggregation <- c('Supergroup','Division','Class',
+                       'Order','Family','Genus','Species','ASV')
   
   position_list = 
     which(
     names(biotic_dists)==
       paste0(all_input_aux$name_aggregation,'_normalized'))
   
-  ## Creating D_pooled 
-  D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
-    all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
+  ## Creating D_pooled ############ -------------------------------------
+  
+  if(all_input_aux$geo_switch=='Geo'){
+    D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
+      all_input_aux$alphaGeo * list_dist_matrices_normalized$geo
+  }else{
+    D_pooled <- (1-all_input_aux$alphaGeo)*biotic_dists[[position_list]] +
+      all_input_aux$alphaGeo * list_dist_matrices_normalized$abiotic
+  }
   
   cluster_membership = cutree(
     hclust(as.dist(D_pooled),method = 'ward.D'),
@@ -401,7 +417,6 @@ generate_all <- function(all_input_aux){
   
   df_lat_geo = df_geo_abiotics %>% select(Latitude,Depth) %>% 
     tibble::add_column(Cluster = factor(cluster_membership))
-  
   
   p_lat_depth = ggplot()+
     geom_label(data = df_lat_geo,
